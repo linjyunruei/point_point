@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>極速連點大挑戰 - Speed Clicker Master</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        },
+                        cyber: {
+                            purple: '#8b5cf6',
+                            pink: '#ec4899',
+                            cyan: '#06b6d4',
+                            gold: '#f59e0b'
+                        }
+                    },
+                    animation: {
+                        'bounce-short': 'bounce 0.3s ease-in-out 1',
+                        'pulse-glow': 'pulseGlow 1.5s infinite alternate',
+                        'float-up': 'floatUp 0.8s ease-out forwards',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%': { boxShadow: '0 0 15px rgba(139, 92, 246, 0.4)' },
+                            '100%': { boxShadow: '0 0 35px rgba(236, 72, 153, 0.8)' }
+                        },
+                        floatUp: {
+                            '0%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+                            '100%': { opacity: '0', transform: 'translateY(-60px) scale(1.3)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .click-btn {
+            transition: transform 0.05s ease-out, box-shadow 0.1s ease-out;
+            touch-action: manipulation;
+        }
+        .click-btn:active {
+            transform: scale(0.92) !important;
+        }
+
+        /* Glassmorphism utility */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gold-border {
+            border-image: linear-gradient(to right, #f59e0b, #ec4899) 1;
+        }
+
+        /* Particle layer */
+        #particle-container {
+            pointer-events: none;
+        }
+
+        .floating-score {
+            pointer-events: none;
+            position: absolute;
+            font-weight: 900;
+            animation: floatUp 0.75s ease-out forwards;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+        }
+        
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.5);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between overflow-x-hidden selection:bg-purple-500 selection:text-white">
+
+    <!-- Header Navbar -->
+    <header class="w-full glass-card sticky top-0 z-40 px-4 py-3 border-b border-slate-800">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <i class="fa-solid fa-bolt text-2xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400">
+                        極速連點王
+                    </h1>
+                    <p class="text-xs text-slate-400">Speed Clicker Master</p>
+                </div>
+            </div>
+
+            <!-- Top Nav Controls -->
+            <div class="flex items-center space-x-2">
+                <button id="audio-toggle-btn" onclick="toggleAudio()" class="p-2.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition" title="靜音/音效">
+                    <i class="fa-solid fa-volume-high text-lg" id="audio-icon"></i>
+                </button>
+                <button onclick="openDeployGuideModal()" class="px-3 py-2 rounded-lg font-bold text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cyan-500/30 transition flex items-center gap-1.5" title="網站架設教學">
+                    <i class="fa-solid fa-rocket"></i><span class="hidden sm:inline">架設網站</span>
+                </button>
+                <button id="tab-game-btn" onclick="switchTab('game')" class="px-4 py-2 rounded-lg font-bold text-sm bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md transition">
+                    <i class="fa-solid fa-gamepad mr-1.5"></i>遊玩
+                </button>
+                <button id="tab-leaderboard-btn" onclick="switchTab('leaderboard')" class="px-4 py-2 rounded-lg font-bold text-sm bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+                    <i class="fa-solid fa-trophy mr-1.5 text-amber-400"></i>排行榜
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-4xl w-full mx-auto p-4 flex-1 flex flex-col justify-center items-center relative my-4">
+
+        <!-- PART 1: GAMEPLAY SECTION -->
+        <section id="section-game" class="w-full flex flex-col items-center space-y-6">
+
+            <!-- Mode Selector Box (When not playing) -->
+            <div id="mode-selection-panel" class="w-full glass-card rounded-2xl p-6 border border-slate-800 text-center shadow-xl">
+                <h2 class="text-xl font-bold mb-4 text-slate-200 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-stopwatch text-purple-400"></i> 選擇挑戰時限模式
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <button onclick="selectTimeMode(10)" id="mode-btn-10" class="mode-btn px-4 py-3 rounded-xl border border-purple-500/40 bg-purple-950/30 hover:bg-purple-900/50 flex flex-col items-center transition border-2 border-purple-500">
+                        <span class="text-2xl font-black text-purple-400">10 秒</span>
+                        <span class="text-xs text-slate-400 mt-1">極速衝刺模式</span>
+                    </button>
+                    <button onclick="selectTimeMode(30)" id="mode-btn-30" class="mode-btn px-4 py-3 rounded-xl border border-slate-700 bg-slate-900/40 hover:bg-slate-800 flex flex-col items-center transition">
+                        <span class="text-2xl font-black text-pink-400">30 秒</span>
+                        <span class="text-xs text-slate-400 mt-1">標準挑戰模式</span>
+                    </button>
+                    <button onclick="selectTimeMode(60)" id="mode-btn-60" class="mode-btn px-4 py-3 rounded-xl border border-slate-700 bg-slate-900/40 hover:bg-slate-800 flex flex-col items-center transition">
+                        <span class="text-2xl font-black text-cyan-400">60 秒</span>
+                        <span class="text-xs text-slate-400 mt-1">耐力考驗模式</span>
+                    </button>
+                    <button onclick="selectTimeMode(0)" id="mode-btn-0" class="mode-btn px-4 py-3 rounded-xl border border-slate-700 bg-slate-900/40 hover:bg-slate-800 flex flex-col items-center transition">
+                        <span class="text-2xl font-black text-amber-400">無限制</span>
+                        <span class="text-xs text-slate-400 mt-1">自由練打/無限點擊</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard / Status Display -->
+            <div class="w-full grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                <!-- Time Left -->
+                <div class="glass-card p-3 rounded-xl text-center border-l-4 border-cyan-500">
+                    <p class="text-xs font-semibold uppercase text-slate-400 tracking-wider">剩餘時間</p>
+                    <p id="timer-display" class="text-2xl sm:text-3xl font-black text-cyan-400 mt-1">10.0s</p>
+                </div>
+                <!-- Real Raw Clicks -->
+                <div class="glass-card p-3 rounded-xl text-center border-l-4 border-emerald-500">
+                    <p class="text-xs font-semibold uppercase text-slate-400 tracking-wider">實際點擊次數</p>
+                    <p id="clicks-display" class="text-2xl sm:text-3xl font-black text-emerald-400 mt-1">0</p>
+                </div>
+                <!-- Total Score (With Combo) -->
+                <div class="glass-card p-3 rounded-xl text-center border-l-4 border-purple-500">
+                    <p class="text-xs font-semibold uppercase text-slate-400 tracking-wider">加成總得分</p>
+                    <p id="score-display" class="text-2xl sm:text-3xl font-black text-purple-400 mt-1">0</p>
+                </div>
+                <!-- CPS (Clicks per Second) -->
+                <div class="glass-card p-3 rounded-xl text-center border-l-4 border-pink-500">
+                    <p class="text-xs font-semibold uppercase text-slate-400 tracking-wider">即時 CPS</p>
+                    <p id="cps-display" class="text-2xl sm:text-3xl font-black text-pink-400 mt-1">0.0</p>
+                </div>
+                <!-- Combo Multiplier -->
+                <div class="glass-card p-3 rounded-xl text-center border-l-4 border-amber-500 col-span-2 sm:col-span-1">
+                    <p class="text-xs font-semibold uppercase text-slate-400 tracking-wider">Combo 連擊</p>
+                    <p id="combo-display" class="text-2xl sm:text-3xl font-black text-amber-400 mt-1">x1.0</p>
+                </div>
+            </div>
+
+            <!-- Time Progress Bar -->
+            <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-700 shadow-inner">
+                <div id="time-progress-bar" class="bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 h-full w-full transition-all duration-100 ease-linear"></div>
+            </div>
+
+            <!-- Main Interactive Click Button -->
+            <div class="relative w-full flex flex-col items-center justify-center my-6 py-4">
+                <!-- Particle burst overlay target -->
+                <div id="particle-container" class="absolute inset-0 z-20 pointer-events-none"></div>
+
+                <!-- Glow background -->
+                <div id="click-glow" class="absolute w-64 h-64 sm:w-80 sm:h-80 bg-purple-600/20 rounded-full blur-3xl pointer-events-none transition-all duration-300"></div>
+
+                <button id="main-click-btn" onclick="handleMainClick(event)" class="click-btn relative z-10 w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-gradient-to-br from-purple-600 via-pink-600 to-cyan-500 p-1.5 shadow-2xl shadow-purple-600/40 hover:scale-105 active:scale-95 transition cursor-pointer group select-none">
+                    <div class="w-full h-full rounded-full bg-slate-950 flex flex-col items-center justify-center border-4 border-white/20 group-hover:bg-slate-900/90 transition">
+                        <i id="click-icon" class="fa-solid fa-bolt text-6xl text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 mb-2 group-hover:scale-110 transition duration-150"></i>
+                        <span id="click-btn-text" class="text-2xl font-black text-white tracking-widest uppercase">點擊開始！</span>
+                        <span id="click-subtext" class="text-xs text-purple-300 mt-1 font-semibold">按下左鍵或觸控畫面</span>
+                    </div>
+                </button>
+
+                <!-- Combo Fever Indicator Banner -->
+                <div id="fever-banner" class="hidden mt-4 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-red-500 text-white font-extrabold text-xs uppercase tracking-widest animate-pulse shadow-lg shadow-amber-500/50">
+                    🔥 FEVER 狂熱狀態中 (2x 加成)
+                </div>
+            </div>
+
+            <!-- Game Control Buttons -->
+            <div class="flex items-center gap-4">
+                <button id="start-reset-btn" onclick="startOrResetGame()" class="px-8 py-3.5 rounded-xl font-extrabold text-base bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-600/30 hover:shadow-emerald-500/50 transition active:scale-95 flex items-center gap-2">
+                    <i class="fa-solid fa-play" id="start-btn-icon"></i> <span id="start-btn-text">開始遊戲</span>
+                </button>
+            </div>
+
+        </section>
+
+        <!-- PART 2: LEADERBOARD SECTION -->
+        <section id="section-leaderboard" class="w-full hidden flex-col items-center space-y-6">
+            <div class="w-full glass-card rounded-2xl p-6 border border-slate-800 shadow-2xl">
+                
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-purple-400 flex items-center gap-2">
+                            <i class="fa-solid fa-crown text-amber-400"></i> 全球榮譽排行榜
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
+                            <span>即時記錄玩家的最佳連點紀錄</span>
+                            <span id="storage-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                💾 本地備份模式
+                            </span>
+                        </p>
+                    </div>
+
+                    <!-- Filter & DB Config -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+                            <button onclick="filterLeaderboard(10)" id="lb-filter-10" class="lb-filter-btn px-4 py-1.5 rounded-lg font-bold text-xs bg-purple-600 text-white transition">10 秒組</button>
+                            <button onclick="filterLeaderboard(30)" id="lb-filter-30" class="lb-filter-btn px-4 py-1.5 rounded-lg font-bold text-xs text-slate-400 hover:text-white transition">30 秒組</button>
+                            <button onclick="filterLeaderboard(60)" id="lb-filter-60" class="lb-filter-btn px-4 py-1.5 rounded-lg font-bold text-xs text-slate-400 hover:text-white transition">60 秒組</button>
+                        </div>
+                        <button onclick="openDbConfigModal()" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1">
+                            <i class="fa-solid fa-gear text-purple-400"></i> 雲端設定
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Leaderboard Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-800/80">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-900/90 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800">
+                                <th class="p-3.5 text-center w-16">名次</th>
+                                <th class="p-3.5">玩家名稱</th>
+                                <th class="p-3.5 text-right">總點擊數</th>
+                                <th class="p-3.5 text-right">平均 CPS</th>
+                                <th class="p-3.5 text-center hidden sm:table-cell">日期</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-tbody" class="divide-y divide-slate-800/50 text-sm">
+                            <tr>
+                                <td colspan="5" class="p-8 text-center text-slate-500">
+                                    <i class="fa-solid fa-circle-notch fa-spin text-2xl text-purple-500 mb-2"></i>
+                                    <p>載入排行榜資料中...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Refresh Button -->
+                <div class="flex justify-end mt-4">
+                    <button onclick="loadLeaderboard()" class="text-xs text-slate-400 hover:text-purple-400 transition flex items-center gap-1">
+                        <i class="fa-solid fa-rotate-right"></i> 重新整理
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- GAME OVER MODAL -->
+    <div id="game-over-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-card max-w-md w-full rounded-2xl p-6 border-2 border-purple-500/50 shadow-2xl relative text-center transform transition-all scale-100">
+            
+            <div class="w-16 h-16 mx-auto rounded-full bg-gradient-to-tr from-amber-500 to-pink-500 flex items-center justify-center mb-3 shadow-lg shadow-amber-500/30">
+                <i class="fa-solid fa-trophy text-2xl text-white"></i>
+            </div>
+
+            <h3 class="text-2xl font-black text-white">時間到！挑戰結束</h3>
+            <p id="modal-subhead" class="text-xs text-slate-400 mt-1">你完成了一場精彩的連點衝刺！</p>
+
+            <!-- Results Summary Card -->
+            <div class="my-5 bg-slate-900/80 rounded-xl p-4 border border-slate-800 grid grid-cols-2 gap-3 text-left">
+                <div>
+                    <span class="text-xs text-slate-400">實際點擊次數</span>
+                    <p id="modal-clicks" class="text-2xl font-black text-emerald-400">0</p>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400">最終得分 (含 Combo)</span>
+                    <p id="modal-score" class="text-2xl font-black text-purple-400">0</p>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400">平均 CPS (真實點擊/秒)</span>
+                    <p id="modal-cps" class="text-2xl font-black text-pink-400">0.0</p>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400">最高連擊 Combo</span>
+                    <p id="modal-max-combo" class="text-lg font-bold text-amber-400">x1.0</p>
+                </div>
+            </div>
+
+            <!-- Submit Name Input (if not endless) -->
+            <div id="score-submit-form" class="space-y-3 text-left">
+                <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider">填寫大名登錄排行榜</label>
+                <div class="relative">
+                    <input type="text" id="player-name-input" maxlength="12" placeholder="輸入玩家暱稱 (最多12字)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-purple-500 transition text-sm">
+                </div>
+                <button id="submit-score-btn" onclick="submitScoreToFirebase()" class="w-full py-3 rounded-xl font-black text-sm bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-600/30 transition active:scale-95">
+                    <i class="fa-solid fa-cloud-arrow-up mr-1.5"></i> 提交成績至排行榜
+                </button>
+            </div>
+
+            <!-- Close / Retry Buttons -->
+            <div class="mt-4 flex gap-2">
+                <button onclick="closeModalAndRetry()" class="w-full py-2.5 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+                    再試一次
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- DEPLOYMENT GUIDE MODAL -->
+    <div id="deploy-guide-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-card max-w-lg w-full rounded-2xl p-6 border border-cyan-500/40 shadow-2xl relative text-left max-h-[90vh] overflow-y-auto">
+            <button onclick="closeModal('deploy-guide-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xl border border-cyan-500/30">
+                    <i class="fa-solid fa-rocket"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-black text-white">免費架設到網站教學</h3>
+                    <p class="text-xs text-slate-400">只需 3 分鐘即可發布成為全球可玩的公開網站</p>
+                </div>
+            </div>
+
+            <div class="space-y-4 text-xs text-slate-300">
+                <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800">
+                    <h4 class="font-bold text-cyan-400 text-sm mb-1">方法一：使用 GitHub Pages (推薦)</h4>
+                    <ol class="list-decimal list-inside space-y-1 text-slate-300">
+                        <li>在 GitHub 建立一個新的公開儲存庫 (Repository)。</li>
+                        <li>把這個 <code class="bg-slate-800 text-pink-300 px-1 rounded">index.html</code> 檔案上傳到儲存庫中。</li>
+                        <li>進入儲存庫的 <b>Settings &gt; Pages</b>，Source 選擇 <code class="bg-slate-800 text-pink-300 px-1 rounded">main</code> 分支後儲存。</li>
+                        <li>約 1 分鐘後即可獲得免費的專屬遊戲網站網址！</li>
+                    </ol>
+                </div>
+
+                <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800">
+                    <h4 class="font-bold text-purple-400 text-sm mb-1">方法二：使用 Vercel 或 Netlify</h4>
+                    <ol class="list-decimal list-inside space-y-1 text-slate-300">
+                        <li>註冊免費 Vercel / Netlify 帳號。</li>
+                        <li>直接將包含這個 <code class="bg-slate-800 text-pink-300 px-1 rounded">index.html</code> 的資料夾拖曳上傳。</li>
+                        <li>幾秒內即可自動產生帶有 HTTPS 的正式網址！</li>
+                    </ol>
+                </div>
+
+                <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800">
+                    <h4 class="font-bold text-amber-400 text-sm mb-1">💡 排行榜儲存提示</h4>
+                    <p class="text-slate-400 leading-relaxed">
+                        本遊戲已內建<b>自動雙重備份機制</b>：<br>
+                        • 無需設定時：自動啟用瀏覽器本地資料庫 (LocalStorage)，任何網站皆可直上直玩！<br>
+                        • 想要跨裝置全球連線：可在「雲端設定」填入自己的 Firebase 憑證，即可開啟真正的全球線上排行榜。
+                    </p>
+                </div>
+            </div>
+
+            <button onclick="closeModal('deploy-guide-modal')" class="w-full mt-5 py-2.5 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-white transition">
+                了解，關閉視窗
+            </button>
+        </div>
+    </div>
+
+    <!-- FIREBASE DB CONFIG MODAL -->
+    <div id="db-config-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-card max-w-lg w-full rounded-2xl p-6 border border-purple-500/40 shadow-2xl relative text-left">
+            <button onclick="closeModal('db-config-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xl border border-purple-500/30">
+                    <i class="fa-solid fa-cloud"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-black text-white">設定全球雲端排行榜 (Firebase)</h3>
+                    <p class="text-xs text-slate-400">填入自訂 Firebase Config 實現跨裝置玩家連線排名</p>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <label class="block text-xs font-bold text-slate-300">貼上 Firebase Config JSON：</label>
+                <textarea id="firebase-config-input" rows="6" placeholder='{\n  "apiKey": "AIzaSy...",\n  "authDomain": "mygame.firebaseapp.com",\n  "projectId": "mygame",\n  "appId": "1:..." \n}' class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-cyan-300 placeholder-slate-600 focus:outline-none focus:border-purple-500 transition"></textarea>
+                <p class="text-[11px] text-slate-500">可在 Firebase Console &gt; Project Settings 中取得此設定。</p>
+            </div>
+
+            <div class="mt-5 flex gap-2">
+                <button onclick="saveCustomFirebaseConfig()" class="flex-1 py-2.5 rounded-xl font-bold text-xs bg-purple-600 hover:bg-purple-500 text-white transition shadow-lg shadow-purple-600/30">
+                    儲存並重新連線
+                </button>
+                <button onclick="clearCustomFirebaseConfig()" class="py-2.5 px-4 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-rose-400 transition">
+                    恢復預設/本地
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="w-full text-center py-4 text-xs text-slate-600 border-t border-slate-900">
+        <p>Speed Clicker Game &copy; 2026 | HTML5 / Tailwind / Firebase Firestore</p>
+    </footer>
+
+    <!-- Firebase Module Setup -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Check for custom Firebase Config saved in LocalStorage
+        const customConfigStr = localStorage.getItem('custom_firebase_config');
+        let firebaseConfig = null;
+
+        if (customConfigStr) {
+            try {
+                firebaseConfig = JSON.parse(customConfigStr);
+            } catch(e) {
+                console.warn('Invalid custom firebase config');
+            }
+        }
+
+        if (!firebaseConfig) {
+            firebaseConfig = typeof __firebase_config !== 'undefined' 
+                ? JSON.parse(__firebase_config) 
+                : {
+                    apiKey: "AIzaSyDemoConfigForTestingOnly",
+                    authDomain: "clicker-demo.firebaseapp.com",
+                    projectId: "clicker-demo",
+                    storageBucket: "clicker-demo.appspot.com",
+                    messagingSenderId: "000000000000",
+                    appId: "1:000000000000:web:000000000000"
+                };
+        }
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'speed-clicker-default';
+
+        // Initialize Firebase
+        try {
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+
+            let currentUser = null;
+
+            async function authenticateUser() {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        const userCredential = await signInWithCustomToken(auth, __initial_auth_token);
+                        currentUser = userCredential.user;
+                    } else {
+                        const userCredential = await signInAnonymously(auth);
+                        currentUser = userCredential.user;
+                    }
+                } catch (err) {
+                    console.warn("Auth warning:", err);
+                }
+            }
+
+            window.firebaseDB = db;
+            window.firebaseAppId = appId;
+            window.getAuthUser = () => currentUser;
+            window.firestoreCollection = collection;
+            window.firestoreAddDoc = addDoc;
+            window.firestoreGetDocs = getDocs;
+
+            authenticateUser();
+        } catch(e) {
+            console.warn("Firebase init fallback:", e);
+            window.firebaseDB = null;
+        }
+    </script>
+
+    <!-- Game Engine & UI Controller Script -->
+    <script>
+        // Web Audio Synthesizer for lag-free click effects
+        let audioCtx = null;
+        let audioEnabled = true;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtxClass) {
+                    audioCtx = new AudioCtxClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playSound(freq, duration, type = 'sine') {
+            if (!audioEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            } catch (e) {
+                // Audio play suppressed
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const icon = document.getElementById('audio-icon');
+            if (audioEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-lg text-slate-300';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-lg text-rose-400';
+            }
+        }
+
+        // Core Game Engine State Variables
+        let selectedTimeLimit = 10; // 10, 30, 60, or 0 (endless)
+        let timeLeft = 10;
+        let rawClicks = 0;
+        let score = 0;
+        let combo = 1.0;
+        let maxCombo = 1.0;
+        let cps = 0;
+        let isPlaying = false;
+        let gameTimer = null;
+        let cpsTimer = null;
+        let clickTimestamps = [];
+        let activeLeaderboardFilter = 10;
+        let lastClickTime = 0;
+        let comboStreak = 0;
+
+        // Mode Selector Handler
+        function selectTimeMode(seconds) {
+            if (isPlaying) return;
+
+            selectedTimeLimit = seconds;
+            timeLeft = seconds;
+
+            // Update UI buttons styling
+            [10, 30, 60, 0].forEach(sec => {
+                const btn = document.getElementById(`mode-btn-${sec}`);
+                if (btn) {
+                    if (sec === seconds) {
+                        btn.className = 'mode-btn px-4 py-3 rounded-xl border border-purple-500/40 bg-purple-950/30 hover:bg-purple-900/50 flex flex-col items-center transition border-2 border-purple-500 shadow-lg shadow-purple-500/20';
+                    } else {
+                        btn.className = 'mode-btn px-4 py-3 rounded-xl border border-slate-700 bg-slate-900/40 hover:bg-slate-800 flex flex-col items-center transition';
+                    }
+                }
+            });
+
+            // Update display
+            document.getElementById('timer-display').innerText = seconds > 0 ? `${seconds.toFixed(1)}s` : '∞';
+            document.getElementById('time-progress-bar').style.width = '100%';
+            
+            // Reset statistics
+            resetGameStats();
+        }
+
+        function resetGameStats() {
+            rawClicks = 0;
+            score = 0;
+            combo = 1.0;
+            maxCombo = 1.0;
+            cps = 0;
+            clickTimestamps = [];
+            comboStreak = 0;
+
+            document.getElementById('clicks-display').innerText = '0';
+            document.getElementById('score-display').innerText = '0';
+            document.getElementById('cps-display').innerText = '0.0';
+            document.getElementById('combo-display').innerText = 'x1.0';
+            document.getElementById('fever-banner').classList.add('hidden');
+        }
+
+        function startOrResetGame() {
+            if (isPlaying) {
+                // Reset active game
+                endGame(false);
+                selectTimeMode(selectedTimeLimit);
+                return;
+            }
+
+            // Start new game
+            isPlaying = true;
+            resetGameStats();
+            timeLeft = selectedTimeLimit > 0 ? selectedTimeLimit : 999999;
+
+            // UI updates
+            document.getElementById('click-btn-text').innerText = '瘋狂連點！';
+            document.getElementById('click-subtext').innerText = '保持最高連擊倍率！';
+            document.getElementById('start-btn-icon').className = 'fa-solid fa-rotate-right';
+            document.getElementById('start-btn-text').innerText = '重新開始';
+            document.getElementById('mode-selection-panel').classList.add('opacity-50', 'pointer-events-none');
+
+            const startTime = Date.now();
+            const totalDuration = selectedTimeLimit;
+
+            // Start main timer loop
+            if (selectedTimeLimit > 0) {
+                gameTimer = setInterval(() => {
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    timeLeft = Math.max(0, totalDuration - elapsed);
+
+                    document.getElementById('timer-display').innerText = `${timeLeft.toFixed(1)}s`;
+                    const percent = (timeLeft / totalDuration) * 100;
+                    document.getElementById('time-progress-bar').style.width = `${percent}%`;
+
+                    if (timeLeft <= 0) {
+                        endGame(true);
+                    }
+                }, 50);
+            } else {
+                document.getElementById('timer-display').innerText = '∞';
+                document.getElementById('time-progress-bar').style.width = '100%';
+            }
+
+            // Start CPS update loop
+            cpsTimer = setInterval(updateCPS, 200);
+        }
+
+        function handleMainClick(event) {
+            // Auto start if clicked without pressing start
+            if (!isPlaying) {
+                startOrResetGame();
+            }
+
+            const now = Date.now();
+            rawClicks++;
+            clickTimestamps.push(now);
+
+            // Combo calculation logic based on click intervals
+            if (lastClickTime > 0 && (now - lastClickTime) < 220) {
+                comboStreak++;
+            } else {
+                comboStreak = Math.max(0, comboStreak - 1);
+            }
+            lastClickTime = now;
+
+            // Calculate active combo multiplier
+            if (comboStreak > 25) {
+                combo = 2.5;
+            } else if (comboStreak > 15) {
+                combo = 2.0;
+            } else if (comboStreak > 5) {
+                combo = 1.5;
+            } else {
+                combo = 1.0;
+            }
+
+            if (combo > maxCombo) maxCombo = combo;
+
+            // Calculate points gained
+            const earnedPoints = Math.round(1 * combo);
+            score += earnedPoints;
+
+            // UI updates
+            document.getElementById('clicks-display').innerText = rawClicks;
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('combo-display').innerText = `x${combo.toFixed(1)}`;
+
+            if (combo >= 2.0) {
+                document.getElementById('fever-banner').classList.remove('hidden');
+            } else {
+                document.getElementById('fever-banner').classList.add('hidden');
+            }
+
+            // Audio & Visual feedback
+            playSound(300 + (combo * 150), 0.08);
+            spawnParticle(event);
+            spawnFloatingScore(`+${earnedPoints}`, event);
+        }
+
+        function updateCPS() {
+            const now = Date.now();
+            // Keep clicks from the last 1 second
+            clickTimestamps = clickTimestamps.filter(t => now - t <= 1000);
+            cps = clickTimestamps.length;
+            document.getElementById('cps-display').innerText = cps.toFixed(1);
+        }
+
+        function spawnParticle(e) {
+            const container = document.getElementById('particle-container');
+            if (!container) return;
+
+            const rect = container.getBoundingClientRect();
+            const x = (e.clientX || rect.width / 2) - rect.left;
+            const y = (e.clientY || rect.height / 2) - rect.top;
+
+            const p = document.createElement('div');
+            p.className = 'absolute w-3 h-3 rounded-full pointer-events-none animate-ping';
+            p.style.left = `${x}px`;
+            p.style.top = `${y}px`;
+
+            const colors = ['#8b5cf6', '#ec4899', '#06b6d4', '#f59e0b', '#22c55e'];
+            p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+
+            container.appendChild(p);
+            setTimeout(() => p.remove(), 600);
+        }
+
+        function spawnFloatingScore(text, e) {
+            const container = document.getElementById('particle-container');
+            if (!container) return;
+
+            const rect = container.getBoundingClientRect();
+            const x = (e.clientX || rect.width / 2) - rect.left + (Math.random() * 40 - 20);
+            const y = (e.clientY || rect.height / 2) - rect.top - 10;
+
+            const f = document.createElement('div');
+            f.className = 'floating-score text-pink-400 text-lg';
+            f.innerText = text;
+            f.style.left = `${x}px`;
+            f.style.top = `${y}px`;
+
+            container.appendChild(f);
+            setTimeout(() => f.remove(), 750);
+        }
+
+        function endGame(showModal = true) {
+            isPlaying = false;
+            clearInterval(gameTimer);
+            clearInterval(cpsTimer);
+
+            document.getElementById('click-btn-text').innerText = '點擊開始！';
+            document.getElementById('click-subtext').innerText = '按下左鍵或觸控畫面';
+            document.getElementById('start-btn-icon').className = 'fa-solid fa-play';
+            document.getElementById('start-btn-text').innerText = '開始遊戲';
+            document.getElementById('mode-selection-panel').classList.remove('opacity-50', 'pointer-events-none');
+            document.getElementById('fever-banner').classList.add('hidden');
+
+            playSound(200, 0.3, 'sawtooth');
+
+            if (showModal && selectedTimeLimit > 0) {
+                const duration = selectedTimeLimit;
+                const avgCPS = (rawClicks / duration).toFixed(1);
+
+                document.getElementById('modal-clicks').innerText = rawClicks;
+                document.getElementById('modal-score').innerText = score;
+                document.getElementById('modal-cps').innerText = avgCPS;
+                document.getElementById('modal-max-combo').innerText = `x${maxCombo.toFixed(1)}`;
+
+                // Load saved player name
+                const savedName = localStorage.getItem('clicker_player_name') || '';
+                document.getElementById('player-name-input').value = savedName;
+
+                // Reset submit button state
+                const submitBtn = document.getElementById('submit-score-btn');
+                submitBtn.disabled = false;
+                submitBtn.className = 'w-full py-3 rounded-xl font-black text-sm bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-600/30 transition active:scale-95';
+                submitBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-1.5"></i> 提交成績至排行榜';
+
+                document.getElementById('game-over-modal').classList.remove('hidden');
+            }
+        }
+
+        function closeModalAndRetry() {
+            closeModal('game-over-modal');
+            selectTimeMode(selectedTimeLimit);
+        }
+
+        const LOCAL_LB_KEY = 'speed_clicker_local_leaderboard';
+
+        function getLocalScores(duration) {
+            try {
+                const data = JSON.parse(localStorage.getItem(LOCAL_LB_KEY) || '[]');
+                return data.filter(item => item.duration === duration);
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveLocalScore(entry) {
+            try {
+                const data = JSON.parse(localStorage.getItem(LOCAL_LB_KEY) || '[]');
+                data.push(entry);
+                localStorage.setItem(LOCAL_LB_KEY, JSON.stringify(data));
+            } catch (e) {
+                console.warn('LocalStorage save failed:', e);
+            }
+        }
+
+        async function submitScoreToFirebase() {
+            const nameInput = document.getElementById('player-name-input');
+            const name = nameInput.value.trim() || '匿名連點手';
+
+            localStorage.setItem('clicker_player_name', name);
+
+            const submitBtn = document.getElementById('submit-score-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 儲存成績中...';
+
+            const duration = selectedTimeLimit > 0 ? selectedTimeLimit : 10;
+            const avgCPS = parseFloat((rawClicks / duration).toFixed(1));
+
+            const entryData = {
+                playerName: name,
+                score: score,
+                rawClicks: rawClicks,
+                duration: selectedTimeLimit,
+                cps: avgCPS,
+                maxCombo: parseFloat(maxCombo.toFixed(1)),
+                timestamp: Date.now()
+            };
+
+            // Always save locally first so score is NEVER lost
+            saveLocalScore(entryData);
+
+            // Try Cloud Firestore upload if available
+            try {
+                const db = window.firebaseDB;
+                const appId = window.firebaseAppId;
+
+                if (db && window.firestoreCollection && window.firestoreAddDoc) {
+                    const leaderboardCol = window.firestoreCollection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+                    await window.firestoreAddDoc(leaderboardCol, entryData);
+                }
+            } catch (err) {
+                console.warn("Cloud save optional fallback active:", err);
+            }
+
+            submitBtn.innerHTML = '<i class="fa-solid fa-check mr-1.5"></i> 儲存成功！';
+            submitBtn.className = 'w-full py-3 rounded-xl font-black text-sm bg-emerald-600 text-white shadow-lg transition';
+
+            setTimeout(() => {
+                closeModalAndRetry();
+                switchTab('leaderboard');
+                filterLeaderboard(selectedTimeLimit);
+            }, 800);
+        }
+
+        async function loadLeaderboard() {
+            const tbody = document.getElementById('leaderboard-tbody');
+            const badge = document.getElementById('storage-status-badge');
+            
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="p-8 text-center text-slate-500">
+                        <i class="fa-solid fa-circle-notch fa-spin text-2xl text-purple-500 mb-2"></i>
+                        <p>載入排行榜資料中...</p>
+                    </td>
+                </tr>
+            `;
+
+            let cloudRecords = [];
+            let isCloudSuccess = false;
+
+            // Try Cloud Firestore first
+            try {
+                const db = window.firebaseDB;
+                const appId = window.firebaseAppId;
+
+                if (db && window.firestoreCollection && window.firestoreGetDocs) {
+                    const leaderboardCol = window.firestoreCollection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+                    const snapshot = await window.firestoreGetDocs(leaderboardCol);
+                    
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.duration === activeLeaderboardFilter) {
+                            cloudRecords.push(data);
+                        }
+                    });
+                    isCloudSuccess = true;
+                }
+            } catch (err) {
+                console.warn("Cloud Firestore unavailable, using local storage:", err);
+            }
+
+            // Get Local Storage records as fallback/supplement
+            const localRecords = getLocalScores(activeLeaderboardFilter);
+
+            // Merge local and cloud records without duplicates
+            let combinedRecords = [...cloudRecords];
+            localRecords.forEach(localItem => {
+                const exists = combinedRecords.some(cloudItem => 
+                    cloudItem.playerName === localItem.playerName && 
+                    cloudItem.score === localItem.score && 
+                    Math.abs((cloudItem.timestamp || 0) - (localItem.timestamp || 0)) < 10000
+                );
+                if (!exists) {
+                    combinedRecords.push(localItem);
+                }
+            });
+
+            // Update status badge UI
+            if (badge) {
+                if (isCloudSuccess && cloudRecords.length > 0) {
+                    badge.innerHTML = '🌐 雲端連線中';
+                    badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                } else {
+                    badge.innerHTML = '💾 本地模式 (即開即玩)';
+                    badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30';
+                }
+            }
+
+            // Sort by highest score
+            combinedRecords.sort((a, b) => b.score - a.score);
+            combinedRecords = combinedRecords.slice(0, 20);
+
+            if (combinedRecords.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="p-8 text-center text-slate-500">
+                            <i class="fa-solid fa-ghost text-3xl mb-2 text-slate-600"></i>
+                            <p>這個時限模式暫無紀錄，快成為第一個登榜者！</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = combinedRecords.map((row, index) => {
+                let rankBadge = `<span class="font-bold text-slate-400">#${index + 1}</span>`;
+                if (index === 0) rankBadge = `<span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-500 text-slate-950 font-black"><i class="fa-solid fa-trophy text-xs"></i></span>`;
+                if (index === 1) rankBadge = `<span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-300 text-slate-950 font-black">2</span>`;
+                if (index === 2) rankBadge = `<span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-700 text-white font-black">3</span>`;
+
+                const formattedDate = row.timestamp ? new Date(row.timestamp).toLocaleDateString() : '近期';
+
+                return `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="p-3.5 text-center">${rankBadge}</td>
+                        <td class="p-3.5 font-bold text-slate-200">${escapeHtml(row.playerName || '匿名玩家')}</td>
+                        <td class="p-3.5 text-right font-black text-purple-400">${row.score}</td>
+                        <td class="p-3.5 text-right font-semibold text-pink-400">${row.cps || (row.score / row.duration).toFixed(1)}</td>
+                        <td class="p-3.5 text-center text-xs text-slate-500 hidden sm:table-cell">${formattedDate}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterLeaderboard(duration) {
+            activeLeaderboardFilter = duration;
+            [10, 30, 60].forEach(d => {
+                const btn = document.getElementById(`lb-filter-${d}`);
+                if (btn) {
+                    if (d === duration) {
+                        btn.className = 'lb-filter-btn px-4 py-1.5 rounded-lg font-bold text-xs bg-purple-600 text-white transition';
+                    } else {
+                        btn.className = 'lb-filter-btn px-4 py-1.5 rounded-lg font-bold text-xs text-slate-400 hover:text-white transition';
+                    }
+                }
+            });
+            loadLeaderboard();
+        }
+
+        function switchTab(tab) {
+            const gameSection = document.getElementById('section-game');
+            const leaderboardSection = document.getElementById('section-leaderboard');
+            const tabGameBtn = document.getElementById('tab-game-btn');
+            const tabLeaderboardBtn = document.getElementById('tab-leaderboard-btn');
+
+            if (tab === 'game') {
+                gameSection.classList.remove('hidden');
+                gameSection.classList.add('flex');
+                leaderboardSection.classList.add('hidden');
+                leaderboardSection.classList.remove('flex');
+
+                tabGameBtn.className = 'px-4 py-2 rounded-lg font-bold text-sm bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md transition';
+                tabLeaderboardBtn.className = 'px-4 py-2 rounded-lg font-bold text-sm bg-slate-800 text-slate-300 hover:bg-slate-700 transition';
+            } else {
+                gameSection.classList.add('hidden');
+                gameSection.classList.remove('flex');
+                leaderboardSection.classList.remove('hidden');
+                leaderboardSection.classList.add('flex');
+
+                tabLeaderboardBtn.className = 'px-4 py-2 rounded-lg font-bold text-sm bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md transition';
+                tabGameBtn.className = 'px-4 py-2 rounded-lg font-bold text-sm bg-slate-800 text-slate-300 hover:bg-slate-700 transition';
+
+                loadLeaderboard();
+            }
+        }
+
+        function openDeployGuideModal() {
+            document.getElementById('deploy-guide-modal').classList.remove('hidden');
+        }
+
+        function openDbConfigModal() {
+            const savedConfig = localStorage.getItem('custom_firebase_config') || '';
+            document.getElementById('firebase-config-input').value = savedConfig;
+            document.getElementById('db-config-modal').classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function saveCustomFirebaseConfig() {
+            const val = document.getElementById('firebase-config-input').value.trim();
+            if (val) {
+                try {
+                    JSON.parse(val);
+                    localStorage.setItem('custom_firebase_config', val);
+                    location.reload();
+                } catch(e) {
+                    alert('JSON 格式不正確，請檢查輸入。');
+                }
+            }
+        }
+
+        function clearCustomFirebaseConfig() {
+            localStorage.removeItem('custom_firebase_config');
+            location.reload();
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+            });
+        }
+
+        window.onload = function() {
+            selectTimeMode(10);
+        };
+    </script>
+</body>
+</html>
