@@ -214,10 +214,10 @@
             <!-- Player Name Form -->
             <div class="space-y-3">
                 <label class="text-xs font-bold text-slate-300 block">請輸入您的玩家暱稱：</label>
-                <input type="text" id="player-name-input" maxlength="12" placeholder="極速連點大師" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition">
+                <input type="text" id="player-name-input" maxlength="12" placeholder="極速連點大師" onkeydown="if(event.key==='Enter') submitScore()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition">
                 <div class="flex gap-2 pt-2">
                     <button onclick="closeModal('result-modal')" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition">
-                        再試一次
+                        暫不登記
                     </button>
                     <button onclick="submitScore()" class="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg shadow-amber-500/20 transition">
                         登記成績
@@ -285,17 +285,17 @@
                 </div>
                 <div>
                     <h3 class="text-lg font-extrabold text-white">跨裝置雲端排行榜設定</h3>
-                    <p class="text-xs text-slate-400">填入 Firebase 金鑰即可啟動跨裝置排名</p>
+                    <p class="text-xs text-slate-400">已自動載入預設 Firebase 雲端金鑰</p>
                 </div>
             </div>
 
-            <p class="text-xs text-slate-300 mb-3">若未設定 Firebase，遊戲預設將無縫使用瀏覽器本地儲存（LocalStorage），不影響任何功能！</p>
+            <p class="text-xs text-slate-300 mb-3">此網頁已預設連結至專屬雲端資料庫。若需替換為自訂專案，可在下方貼入您的 Firebase Config JSON：</p>
 
             <textarea id="firebase-config-input" rows="5" placeholder='{"apiKey": "...", "authDomain": "...", "projectId": "..."}' class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300 focus:outline-none focus:border-amber-500 transition"></textarea>
 
             <div class="flex gap-2 mt-4">
                 <button onclick="saveCloudConfig()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-lg transition">
-                    儲存雲端設定
+                    儲存自訂設定
                 </button>
             </div>
         </div>
@@ -354,6 +354,17 @@
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Default Firebase credentials for zero-config auto-connect on any device
+        const DEFAULT_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyDlW5QfG5KQ-CqW-eAhRNnNiXehq171-Nc",
+            authDomain: "point-point-4b862.firebaseapp.com",
+            projectId: "point-point-4b862",
+            storageBucket: "point-point-4b862.firebasestorage.app",
+            messagingSenderId: "735822655636",
+            appId: "1:735822655636:web:6f564ade7d55a2b11c8481",
+            measurementId: "G-KZS2XLVBFG"
+        };
+
         let db = null;
         let auth = null;
         let isCloudActive = false;
@@ -373,19 +384,21 @@
                     config = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
                 } else {
                     const userConfigStr = localStorage.getItem('clicker_fb_config');
-                    if (userConfigStr) config = JSON.parse(userConfigStr);
+                    if (userConfigStr) {
+                        try { config = JSON.parse(userConfigStr); } catch(e){}
+                    }
                 }
 
+                // Fallback to embedded default config if none provided
                 if (!config) {
-                    updateStatusBadge(false);
-                    return;
+                    config = DEFAULT_FIREBASE_CONFIG;
                 }
 
                 const app = initializeApp(config);
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                // Authenticate before queries (Rule 3)
+                // Authenticate before queries
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
@@ -407,10 +420,8 @@
         function setupRealtimeListener() {
             if (!db || !auth?.currentUser) return;
             
-            // Public scores collection path (Rule 1)
             const scoresColRef = collection(db, 'artifacts', appId, 'public', 'data', 'clicker_scores');
 
-            // Listen to real-time changes across all connected devices (Rule 2: simple collection query, memory sort)
             onSnapshot(scoresColRef, (snapshot) => {
                 const freshCloudData = { 10: [], 30: [], 60: [] };
                 snapshot.forEach((docSnap) => {
@@ -491,6 +502,7 @@
         let activeTab = 10;         // Active leaderboard tab
         let clickTimestamps = [];   // Used to calculate real-time CPS
         let lastGameStats = null;   // Locked snapshot of the last completed game session
+        let canStartGame = true;    // Cooldown flag to prevent accidental auto-restarts
 
         window.activeTab = activeTab;
 
@@ -544,6 +556,7 @@
 
         // Start or Reset Game
         function startOrResetGame() {
+            if (!canStartGame) return; // Prevent triggering during cooldown
             if (timer) clearInterval(timer);
             
             isPlaying = true;
@@ -564,9 +577,9 @@
             document.getElementById('time-display').innerText = `${timeLeft.toFixed(1)}s`;
             
             const startBtn = document.getElementById('start-btn-label');
-            if (startBtn) startBtn.innerText = "重新開始";
+            if (startBtn) startBtn.innerText = "進行中...";
 
-            // Timer interval (runs every 100ms for smooth display)
+            // Timer interval
             const startTime = Date.now();
             const targetTime = startTime + timeMode * 1000;
 
@@ -585,6 +598,12 @@
 
         // Main Click Handling Function
         function handleMainClick(event) {
+            if (!canStartGame) return;
+
+            // Do not start if any modal is currently visible
+            const openModals = document.querySelectorAll('#result-modal:not(.hidden), #deploy-modal:not(.hidden), #cloud-modal:not(.hidden), #dev-modal:not(.hidden)');
+            if (openModals.length > 0) return;
+
             if (!isPlaying) {
                 startOrResetGame();
             }
@@ -601,7 +620,7 @@
             }
             lastClickTime = now;
 
-            // UNLIMITED COMBO MULTIPLIER: Increases continuously with streak!
+            // UNLIMITED COMBO MULTIPLIER
             if (comboStreak > 0) {
                 combo = 1.0 + (comboStreak * 0.08);
             } else {
@@ -629,7 +648,6 @@
 
             // Audio & Visual feedback
             playSound(300 + (combo * 150), 0.06);
-            spawnParticle(event);
             spawnFloatingScore(`+${earnedPoints}`, event);
         }
 
@@ -650,7 +668,6 @@
                 x = event.clientX - rect.left;
                 y = event.clientY - rect.top;
             } else {
-                // Fallback center random coordinates
                 x = 80 + (Math.random() * 40 - 20);
                 y = 60 + (Math.random() * 40 - 20);
             }
@@ -662,32 +679,25 @@
             setTimeout(() => el.remove(), 600);
         }
 
-        function spawnParticle(event) {
-            // Additional spark effects
-        }
-
         // Keyboard Listener (Space key click trigger)
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space' || e.key === ' ') {
-                // Ignore key press if user is actively typing in an input field or text area
                 const activeEl = document.activeElement;
                 if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
                     return;
                 }
 
-                // Ignore key press if any modal is currently visible on screen
                 const openModals = document.querySelectorAll('#result-modal:not(.hidden), #deploy-modal:not(.hidden), #cloud-modal:not(.hidden), #dev-modal:not(.hidden)');
                 if (openModals.length > 0) {
                     return;
                 }
 
-                e.preventDefault(); // Prevent page scrolling
-                if (e.repeat) return; // Prevent key hold exploit
+                e.preventDefault();
+                if (e.repeat) return;
 
                 const btn = document.getElementById('click-btn');
                 const rect = btn.getBoundingClientRect();
 
-                // Generate synthetic event coordinates over the button center
                 const fakeEvent = {
                     clientX: rect.left + rect.width / 2 + (Math.random() * 40 - 20),
                     clientY: rect.top + rect.height / 2 + (Math.random() * 40 - 20)
@@ -695,7 +705,6 @@
 
                 handleMainClick(fakeEvent);
 
-                // Button press visual feedback
                 btn.classList.add('scale-95');
                 setTimeout(() => btn.classList.remove('scale-95'), 80);
             }
@@ -705,10 +714,11 @@
         function endGame() {
             clearInterval(timer);
             isPlaying = false;
+            canStartGame = false; // Block immediate game restarts to avoid score wipe bugs
 
             const cps = (rawClicks / timeMode).toFixed(1);
 
-            // Create an immutable snapshot of current session results to prevent modal/tab race conditions
+            // Lock score snapshot
             lastGameStats = {
                 score: score,
                 clicks: rawClicks,
@@ -723,12 +733,17 @@
             document.getElementById('res-maxcombo').innerText = `x${maxCombo.toFixed(1)}`;
 
             const startBtn = document.getElementById('start-btn-label');
-            if (startBtn) startBtn.innerText = "再玩一次";
+            if (startBtn) startBtn.innerText = "重新開始";
 
             openModal('result-modal');
+
+            // Set a short cooldown before user can start a new game
+            setTimeout(() => {
+                canStartGame = true;
+            }, 500);
         }
 
-        // Leaderboard logic (LocalStorage default for 100% instant reliability)
+        // Leaderboard logic (LocalStorage default fallback)
         function getLocalLeaderboard(mode) {
             try {
                 const data = localStorage.getItem(`clicker_lb_${mode}`);
@@ -736,7 +751,6 @@
                 const list = JSON.parse(data);
                 if (!Array.isArray(list)) return [];
 
-                // Sanitize legacy or incomplete records from earlier versions
                 return list.map(item => ({
                     name: (item && typeof item.name === 'string' && item.name.trim()) ? item.name.trim() : '極速玩家',
                     score: typeof item.score === 'number' && !isNaN(item.score) ? item.score : (parseInt(item.score) || 0),
@@ -781,12 +795,10 @@
 
             let records = [];
 
-            // Check if Cloud is active and contains data for this mode
             if (typeof window.isCloudActive === 'function' && window.isCloudActive()) {
                 records = window.getCloudScores(mode);
             }
 
-            // Fallback to local storage if cloud records are empty
             if (!records || records.length === 0) {
                 records = getLocalLeaderboard(mode);
             }
@@ -854,6 +866,8 @@
 
             if (!lastGameStats) return;
 
+            canStartGame = false;
+
             const entry = {
                 name: name,
                 score: lastGameStats.score,
@@ -875,6 +889,11 @@
 
             closeModal('result-modal');
             switchLeaderboardTab(lastGameStats.mode);
+
+            // Cooldown before allowing click to start game again
+            setTimeout(() => {
+                canStartGame = true;
+            }, 500);
         }
 
         // Modal Controls
@@ -901,12 +920,10 @@
             const msgEl = document.getElementById('dev-msg');
 
             if (user === 'meps110216' && pass === 'meps786039') {
-                // Clear local records
                 [10, 30, 60].forEach(m => {
                     localStorage.removeItem(`clicker_lb_${m}`);
                 });
 
-                // Clear cloud records across devices
                 if (typeof window.clearCloudLeaderboard === 'function') {
                     await window.clearCloudLeaderboard();
                 }
