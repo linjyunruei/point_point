@@ -363,6 +363,7 @@
         let lastClickTime = 0;      // Timestamp of last click
         let activeTab = 10;         // Active leaderboard tab
         let clickTimestamps = [];   // Used to calculate real-time CPS
+        let lastGameStats = null;   // Locked snapshot of the last completed game session
 
         // Audio Context setup for synth sound effects
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -539,6 +540,18 @@
         // Keyboard Listener (Space key click trigger)
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space' || e.key === ' ') {
+                // Ignore key press if user is actively typing in an input field or text area
+                const activeEl = document.activeElement;
+                if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+                    return;
+                }
+
+                // Ignore key press if any modal is currently visible on screen
+                const openModals = document.querySelectorAll('#result-modal:not(.hidden), #deploy-modal:not(.hidden), #cloud-modal:not(.hidden), #dev-modal:not(.hidden)');
+                if (openModals.length > 0) {
+                    return;
+                }
+
                 e.preventDefault(); // Prevent page scrolling
                 if (e.repeat) return; // Prevent key hold exploit
 
@@ -566,6 +579,15 @@
 
             const cps = (rawClicks / timeMode).toFixed(1);
 
+            // Create an immutable snapshot of current session results to prevent modal/tab race conditions
+            lastGameStats = {
+                score: score,
+                clicks: rawClicks,
+                cps: cps,
+                maxCombo: maxCombo,
+                mode: timeMode
+            };
+
             document.getElementById('res-score').innerText = score;
             document.getElementById('res-clicks').innerText = rawClicks;
             document.getElementById('res-cps').innerText = cps;
@@ -581,7 +603,20 @@
         function getLocalLeaderboard(mode) {
             try {
                 const data = localStorage.getItem(`clicker_lb_${mode}`);
-                return data ? JSON.parse(data) : [];
+                if (!data) return [];
+                const list = JSON.parse(data);
+                if (!Array.isArray(list)) return [];
+
+                // Sanitize legacy or incomplete records from earlier versions
+                return list.map(item => ({
+                    name: (item && typeof item.name === 'string' && item.name.trim()) ? item.name.trim() : '極速玩家',
+                    score: typeof item.score === 'number' && !isNaN(item.score) ? item.score : (parseInt(item.score) || 0),
+                    clicks: typeof item.clicks === 'number' && !isNaN(item.clicks) ? item.clicks : (parseInt(item.clicks) || 0),
+                    cps: item.cps ? String(item.cps) : '0.0',
+                    maxCombo: typeof item.maxCombo === 'number' ? item.maxCombo : (parseFloat(item.maxCombo) || 1.0),
+                    mode: item.mode || mode,
+                    date: item.date || '歷史紀錄'
+                })).sort((a, b) => b.score - a.score);
             } catch (e) {
                 return [];
             }
@@ -675,21 +710,23 @@
         function submitScore() {
             const nameInput = document.getElementById('player-name-input');
             const name = nameInput.value.trim() || '極速玩家';
-            const cps = (rawClicks / timeMode).toFixed(1);
+
+            // Ensure we use the exact session stats captured at game completion
+            if (!lastGameStats) return;
 
             const entry = {
                 name: name,
-                score: score,
-                clicks: rawClicks,
-                cps: cps,
-                maxCombo: maxCombo,
-                mode: timeMode,
+                score: lastGameStats.score,
+                clicks: lastGameStats.clicks,
+                cps: lastGameStats.cps,
+                maxCombo: lastGameStats.maxCombo,
+                mode: lastGameStats.mode,
                 date: new Date().toLocaleDateString()
             };
 
-            saveLocalLeaderboard(timeMode, entry);
+            saveLocalLeaderboard(lastGameStats.mode, entry);
             closeModal('result-modal');
-            switchLeaderboardTab(timeMode);
+            switchLeaderboardTab(lastGameStats.mode);
         }
 
         // Modal Controls
