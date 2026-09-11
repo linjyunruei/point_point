@@ -150,7 +150,7 @@
                     <h2 class="font-bold text-base text-white">排行榜紀錄</h2>
                 </div>
                 <span id="leaderboard-status" class="text-[11px] text-slate-400 bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-700">
-                    <i class="fa-solid fa-database text-amber-400 mr-1"></i> 本地 / 雲端
+                    <i class="fa-solid fa-circle-notch fa-spin text-amber-400 mr-1"></i> 連線中...
                 </span>
             </div>
 
@@ -348,6 +348,133 @@
         狂熱極速連點大賽 &copy; 2026 - 連點機制與無上限 Combo 升級版
     </footer>
 
+    <!-- Firebase SDK Imports & Real-time Cloud Sync Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let db = null;
+        let auth = null;
+        let isCloudActive = false;
+        let cloudScoresMap = { 10: [], 30: [], 60: [] };
+
+        // Expose Firebase Cloud status & actions globally
+        window.isCloudActive = () => isCloudActive;
+        window.getCloudScores = (mode) => cloudScoresMap[mode] || [];
+
+        // Global variables for Firebase environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'speed-clicker-app';
+
+        async function initCloudSync() {
+            try {
+                let config = null;
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                    config = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
+                } else {
+                    const userConfigStr = localStorage.getItem('clicker_fb_config');
+                    if (userConfigStr) config = JSON.parse(userConfigStr);
+                }
+
+                if (!config) {
+                    updateStatusBadge(false);
+                    return;
+                }
+
+                const app = initializeApp(config);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Authenticate before queries (Rule 3)
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                if (auth.currentUser) {
+                    isCloudActive = true;
+                    updateStatusBadge(true);
+                    setupRealtimeListener();
+                }
+            } catch (err) {
+                console.warn('Firebase initialization fallback to local storage:', err);
+                isCloudActive = false;
+                updateStatusBadge(false);
+            }
+        }
+
+        function setupRealtimeListener() {
+            if (!db || !auth?.currentUser) return;
+            
+            // Public scores collection path (Rule 1)
+            const scoresColRef = collection(db, 'artifacts', appId, 'public', 'data', 'clicker_scores');
+
+            // Listen to real-time changes across all connected devices (Rule 2: simple collection query, memory sort)
+            onSnapshot(scoresColRef, (snapshot) => {
+                const freshCloudData = { 10: [], 30: [], 60: [] };
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    if (data && data.mode && freshCloudData[data.mode]) {
+                        freshCloudData[data.mode].push({ ...data, docId: docSnap.id });
+                    }
+                });
+
+                [10, 30, 60].forEach(mode => {
+                    freshCloudData[mode].sort((a, b) => b.score - a.score);
+                    cloudScoresMap[mode] = freshCloudData[mode];
+                });
+
+                if (typeof window.loadLeaderboard === 'function') {
+                    window.loadLeaderboard(window.activeTab || 10);
+                }
+            }, (error) => {
+                console.error("Firestore real-time listener error:", error);
+                isCloudActive = false;
+                updateStatusBadge(false);
+            });
+        }
+
+        window.saveScoreToCloud = async function(entry) {
+            if (!isCloudActive || !db || !auth?.currentUser) return;
+            try {
+                const scoresColRef = collection(db, 'artifacts', appId, 'public', 'data', 'clicker_scores');
+                await addDoc(scoresColRef, entry);
+            } catch (e) {
+                console.error("Failed to add score to cloud:", e);
+            }
+        };
+
+        window.clearCloudLeaderboard = async function() {
+            if (!isCloudActive || !db || !auth?.currentUser) return;
+            try {
+                const scoresColRef = collection(db, 'artifacts', appId, 'public', 'data', 'clicker_scores');
+                const snapshot = await getDocs(scoresColRef);
+                const deletePromises = [];
+                snapshot.forEach((docSnap) => {
+                    deletePromises.push(deleteDoc(docSnap.ref));
+                });
+                await Promise.all(deletePromises);
+            } catch (e) {
+                console.error("Failed to clear cloud leaderboard:", e);
+            }
+        };
+
+        function updateStatusBadge(active) {
+            const badge = document.getElementById('leaderboard-status');
+            if (!badge) return;
+            if (active) {
+                badge.innerHTML = `<i class="fa-solid fa-wifi text-emerald-400 mr-1 animate-pulse"></i> 雲端即時連動中`;
+                badge.className = "text-[11px] text-emerald-400 bg-emerald-950/50 px-2.5 py-1 rounded-full border border-emerald-500/30 font-semibold";
+            } else {
+                badge.innerHTML = `<i class="fa-solid fa-database text-amber-400 mr-1"></i> 本地儲存模式`;
+                badge.className = "text-[11px] text-slate-400 bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-700";
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', initCloudSync);
+    </script>
+
     <!-- Game Engine Logic Script -->
     <script>
         // Game state variables
@@ -364,6 +491,8 @@
         let activeTab = 10;         // Active leaderboard tab
         let clickTimestamps = [];   // Used to calculate real-time CPS
         let lastGameStats = null;   // Locked snapshot of the last completed game session
+
+        window.activeTab = activeTab;
 
         // Audio Context setup for synth sound effects
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -650,7 +779,17 @@
             const listContainer = document.getElementById('leaderboard-list');
             if (!listContainer) return;
 
-            const records = getLocalLeaderboard(mode);
+            let records = [];
+
+            // Check if Cloud is active and contains data for this mode
+            if (typeof window.isCloudActive === 'function' && window.isCloudActive()) {
+                records = window.getCloudScores(mode);
+            }
+
+            // Fallback to local storage if cloud records are empty
+            if (!records || records.length === 0) {
+                records = getLocalLeaderboard(mode);
+            }
 
             if (records.length === 0) {
                 listContainer.innerHTML = `
@@ -707,11 +846,12 @@
             listContainer.innerHTML = html;
         }
 
+        window.loadLeaderboard = loadLeaderboard;
+
         function submitScore() {
             const nameInput = document.getElementById('player-name-input');
             const name = nameInput.value.trim() || '極速玩家';
 
-            // Ensure we use the exact session stats captured at game completion
             if (!lastGameStats) return;
 
             const entry = {
@@ -721,10 +861,18 @@
                 cps: lastGameStats.cps,
                 maxCombo: lastGameStats.maxCombo,
                 mode: lastGameStats.mode,
-                date: new Date().toLocaleDateString()
+                date: new Date().toLocaleDateString(),
+                timestamp: Date.now()
             };
 
+            // Local save for fallback
             saveLocalLeaderboard(lastGameStats.mode, entry);
+
+            // Cloud sync
+            if (typeof window.saveScoreToCloud === 'function') {
+                window.saveScoreToCloud(entry);
+            }
+
             closeModal('result-modal');
             switchLeaderboardTab(lastGameStats.mode);
         }
@@ -742,29 +890,32 @@
             const val = document.getElementById('firebase-config-input').value;
             if (val) {
                 localStorage.setItem('clicker_fb_config', val);
+                location.reload();
             }
             closeModal('cloud-modal');
         }
 
-        function verifyAndResetData() {
+        async function verifyAndResetData() {
             const user = document.getElementById('dev-user-input').value.trim();
             const pass = document.getElementById('dev-pass-input').value.trim();
             const msgEl = document.getElementById('dev-msg');
 
-            // Verify requested developer credentials
             if (user === 'meps110216' && pass === 'meps786039') {
-                // Remove all mode local storage records
+                // Clear local records
                 [10, 30, 60].forEach(m => {
                     localStorage.removeItem(`clicker_lb_${m}`);
                 });
 
-                // Refresh current active leaderboard UI view
+                // Clear cloud records across devices
+                if (typeof window.clearCloudLeaderboard === 'function') {
+                    await window.clearCloudLeaderboard();
+                }
+
                 loadLeaderboard(activeTab);
 
                 msgEl.className = "text-xs font-bold py-2 px-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 block";
-                msgEl.innerText = "✅ 身份驗證成功！所有排行榜紀錄已順利重置。";
+                msgEl.innerText = "✅ 身份驗證成功！跨裝置雲端與本地排行榜數據已順利重置。";
 
-                // Reset field inputs
                 document.getElementById('dev-user-input').value = '';
                 document.getElementById('dev-pass-input').value = '';
 
@@ -773,7 +924,7 @@
                     msgEl.classList.add('hidden');
                 }, 1500);
             } else {
-                msgEl.className = "text-xs font-bold py-2 px-3 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 block";
+                msgEl.className = "text-xs font-bold py-2 px-[12px] rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 block";
                 msgEl.innerText = "❌ 帳號或密碼錯誤，無法重置數據！";
             }
         }
